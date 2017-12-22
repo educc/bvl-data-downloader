@@ -22,13 +22,13 @@ task fatJar(type: Jar) {
     manifest {
         attributes 'Implementation-Title': 'Gradle Jar File Example',
                 'Implementation-Version': version,
-                'Main-Class': 'com.ecacho.extnmo.App'
+                'Main-Class': 'com.ecacho.perhis.App'
     }
     baseName = project.name + '-all'
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
 }
 
-mainClassName ='com.ecacho.extnmo.App'
+mainClassName ='com.ecacho.perhis.App'
 
 
