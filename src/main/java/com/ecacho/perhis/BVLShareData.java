@@ -6,43 +6,47 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.File;
-import java.io.IOException;
+import java.io.FileWriter;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class BVLShareData {
 
-    private static final String URL_FIND_BY_NEMO = "http://www.bvl.com.pe/jsp/cotizacion.jsp?fec_inicio=19960101&fec_fin=20171201&nemonico=";
+    private static final String URL_FIND_BY_NEMO = "http://www.bvl.com.pe/jsp/cotizacion.jsp?fec_inicio=%s&fec_fin=%s&nemonico=%s";
+
     private static final String URL_BVL = "http://www.bvl.com.pe";
+    private static final String OUT_DIR = "./data/";
+
+    public static final String FORMAT_DATE = "yyyyMMdd";
 
 
-    public static String shareHistory(String nemo) throws Exception {
-        String url = URL_FIND_BY_NEMO + nemo.trim();
-        Document doc = Jsoup.connect(url).get();
-
-        Elements listEl = doc.select("table tr");
-        if(listEl.size() == 0){
-            throw new Exception("Nenomico no encontrado");
+    public static String createUrl(LocalDate startDate, LocalDate endEnd, String nemo){
+        if(startDate.isAfter(endEnd)){
+            throw new IllegalArgumentException("The startDate can't be after the endEnd");
         }
 
-        for(Element trEl: listEl){
-            if( trEl.childNodeSize() >= 10){
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(FORMAT_DATE);
 
-            }
-        }
-
-        return URL_BVL + listEl.get(0).attr("href");
+        return String.format(
+                URL_FIND_BY_NEMO,
+                formatter.format(startDate),
+                formatter.format(endEnd),
+                nemo
+        );
     }
 
-    public static String shareHistoryFromFile(String strfilepath) throws Exception {
-        StringBuilder sb = new StringBuilder();
+    public static void saveHistoryFromDoc(String nemo, Document doc) throws Exception {
+        Path dirNemo = Paths.get(OUT_DIR,nemo);
+        Files.createDirectories(dirNemo);
 
-        File myfile = new File(strfilepath);
-        String nemonico = myfile.getName();
-        String html = new String(Files.readAllBytes(Paths.get(strfilepath)));
-        Document doc = Jsoup.parse(html);
+        String absNewFile = dirNemo.resolve(nemo + "_1.txt").toString();
+
+        FileWriter fw = new FileWriter(absNewFile);
+
 
         Elements listEl = doc.select("table tr");
         if(listEl.size() == 0){
@@ -50,6 +54,8 @@ public class BVLShareData {
         }
 
         for(Element trEl: listEl){
+            StringBuilder sb = new StringBuilder();
+
             Elements tdList = trEl.select("td");
             if( tdList.size() >= 10){
                 for(Element tdEl: tdList){
@@ -58,11 +64,12 @@ public class BVLShareData {
                 }
 
             }
-            //sb.delete(sb.length()-2, sb.length()-
             sb.append("\n");
+
+            fw.write(sb.toString());
         }
 
-        return sb.toString();
+        fw.close();
     }
 
 }

@@ -27,3 +27,6 @@ hs_err_pid*
 #idea files
 .idea/
 extnmo.iml
+*.iml
+*.txt
+data/
