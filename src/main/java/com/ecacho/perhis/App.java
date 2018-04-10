@@ -60,11 +60,7 @@ public class App {
                   }
                 }).subscribeOn(Schedulers.io());
               })
-              .doOnError(error -> {
-                error.printStackTrace();
-              })
-              //.observeOn(Schedulers.single())
-              .toList().blockingGet().stream().forEach(it -> {
+              .blockingSubscribe(it -> {
                 NemoBVL nemobvl = (NemoBVL) it;
                 log.info("save: " + nemobvl.getNemo());
                 try {
