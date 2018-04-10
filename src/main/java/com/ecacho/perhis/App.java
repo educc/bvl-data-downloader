@@ -1,10 +1,10 @@
 package com.ecacho.perhis;
 
+import io.reactivex.Observable;
+import io.reactivex.Single;
+import io.reactivex.schedulers.Schedulers;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import rx.Observable;
-import rx.Subscription;
-import rx.schedulers.Schedulers;
 
 import java.io.*;
 import java.time.LocalDate;
@@ -13,7 +13,11 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
+
+import static io.reactivex.Observable.create;
 
 public class App {
 
@@ -22,47 +26,56 @@ public class App {
     private static final String FORMAT_DATE_IN = "yyyy-MM-dd";
 
     public static void main(String[] args) throws Exception {
-        if(!isValidInputParams(args)){
-            System.exit(-1);
-        }
-        log.info("Starting app");
+      args = new String[]{"nemos.txt", "2018-03-01",  "2018-03-31"};
+      if(!isValidInputParams(args)){
+          System.exit(-1);
+      }
+      log.info("Starting app");
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(FORMAT_DATE_IN);
+      DateTimeFormatter formatter = DateTimeFormatter.ofPattern(FORMAT_DATE_IN);
 
-        String file = args[0];
-        LocalDate startDate = LocalDate.parse(args[1], formatter);
-        LocalDate endDate = LocalDate.parse(args[2], formatter);
+      String file = args[0];
+      LocalDate startDate = LocalDate.parse(args[1], formatter);
+      LocalDate endDate = LocalDate.parse(args[2], formatter);
 
-        Observable.from(getNemos(file))
-            .map(nemo -> {
+
+
+      Observable.fromArray(getNemos(file))
+              .flatMap(Observable::fromIterable)
+              .map(nemo -> {
                 log.info("createUrl: " + nemo);
                 String url = BVLShareData.createUrl(startDate, endDate, nemo);
                 return new NemoBVL(nemo, url);
-            })
-            .map(nemobvl -> {
-                log.info("createDoc:" + nemobvl.getNemo());
-                Document doc = null;
-                try {
+              })
+              .flatMapSingle(nemobvl -> {
+                return Single.create(emitter -> {
+                  log.info("createDoc:" + nemobvl.getNemo());
+                  Document doc = null;
+                  try {
                     doc = Jsoup.connect(nemobvl.getUrl()).get();
-                } catch (IOException e) {
+                    nemobvl.setDoc(doc);
+                    emitter.onSuccess(nemobvl);
+                  } catch (IOException e) {
                     e.printStackTrace();
-                }
-                nemobvl.setDoc(doc);
-                return nemobvl;
-            })//.subscribeOn(Schedulers.newThread())
-            .doOnError(error -> {
+                  }
+                }).subscribeOn(Schedulers.io());
+              })
+              .doOnError(error -> {
                 error.printStackTrace();
-            }).forEach(nemobvl -> {
+              })
+              //.observeOn(Schedulers.single())
+              .toList().blockingGet().stream().forEach(it -> {
+                NemoBVL nemobvl = (NemoBVL) it;
                 log.info("save: " + nemobvl.getNemo());
                 try {
-                    BVLShareData.saveHistoryFromDoc(
-                            nemobvl.getNemo(),
-                            nemobvl.getDoc()
-                    );
+                  BVLShareData.saveHistoryFromDoc(
+                          nemobvl.getNemo(),
+                          nemobvl.getDoc()
+                  );
                 } catch (Exception e) {
-                    e.printStackTrace();
+                  e.printStackTrace();
                 }
-            });
+              });
     }
 
     private static List<String> getNemos(String file) throws IOException {

@@ -30,3 +30,4 @@ extnmo.iml
 *.iml
 *.txt
 data/
+gradle.properties
