@@ -47,16 +47,18 @@ public class App {
                 String url = BVLShareData.createUrl(startDate, endDate, nemo);
                 return new NemoBVL(nemo, url);
               })
-              .flatMapSingle(nemobvl -> {
-                return Single.create(emitter -> {
+              .flatMap(nemobvl -> {
+                return Observable.create(emitter -> {
                   log.info("createDoc:" + nemobvl.getNemo());
                   Document doc = null;
                   try {
                     doc = Jsoup.connect(nemobvl.getUrl()).get();
                     nemobvl.setDoc(doc);
-                    emitter.onSuccess(nemobvl);
+                    emitter.onNext((NemoBVL) nemobvl);
                   } catch (IOException e) {
                     e.printStackTrace();
+                  } finally {
+                    emitter.onComplete();
                   }
                 }).subscribeOn(Schedulers.io());
               })
